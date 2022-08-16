@@ -7,7 +7,9 @@ import {
     TransactionInstruction,
     TransactionSignature,
     SimulatedTransactionResponse,
-    Signer
+    Signer,
+    sendAndConfirmTransaction,
+    sendAndConfirmRawTransaction
   } from '@solana/web3.js'
 import {
     getGovernanceProgramVersion,
@@ -35,6 +37,7 @@ import {
     serializeInstructionToBase64
 } from '@solana/spl-governance'
 import { useWallet } from '@solana/wallet-adapter-react';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
 import { SignerWalletAdapter, WalletAdapter } from '@solana/wallet-adapter-base'
 
 import BN from 'bn.js'
@@ -113,7 +116,6 @@ function extractGovernanceAccountFromInstructionsData(
 }
 
 
-
 export async function getSolTransferInstruction({
     governedTokenAccount,
     destinationAccount,
@@ -153,16 +155,17 @@ export async function getSolTransferInstruction({
   }
 
   
-const CreateProposal: FC = () => {
+const CreateProposal = ({ wallet, connection}:{ wallet: WalletSigner, connection: Connection}) => {
 
-    const wallet = useWallet();
+    console.log("CreateProposal - wallet", wallet)
 
     const [instructionsData, setInstructions] = useState<
         ComponentInstructionData[]
     >([{ type: undefined }])
+    const [instructionsDataToSend, setInstructionsDataToSend] = useState<InstructionDataWithHoldUpTime[]>()
     const [
-            governance,
-            setGovernance,
+      selectedGovernance,
+            setSelectedGovernance,
           ] = useState<ProgramAccount<Governance> | null>(null)
     
     const handleSetInstructions = (val: any, index) => {
@@ -171,7 +174,7 @@ const CreateProposal: FC = () => {
         setInstructions(newInstructions)
       }
 
-    const handleGetInstructions = async () => {
+    const handleGetInstructions = async (instructionsData) => {
         console.log(' handleGetInstructions function called')
         console.log(' handleGetInstructions function - instructionsData', instructionsData)
         const instructions: UiInstruction[] = []
@@ -184,30 +187,60 @@ const CreateProposal: FC = () => {
         return instructions
     }
 
-    useEffect(()=>{
-        let instructions: UiInstruction[] = []
-        instructions = instructions
-        console.log('createproposal - handleGetInstructions', instructions)
+    // useEffect(()=>{
+    //     // let instructions: UiInstruction[] = []
+        
+    //     // console.log('createproposal - handleGetInstructions', instructions)
 
-        // if(instructions.length>0){
-        //     const instructionsData = [
-        //         ...instructions.map((x) => {
-        //           return {
-        //             data: x.serializedInstruction
-        //               ? getInstructionDataFromBase64(x.serializedInstruction)
-        //               : null,
-        //             holdUpTime: x.customHoldUpTime
-        //               ? getTimestampFromDays(x.customHoldUpTime)
-        //               : selectedGovernance?.account?.config.minInstructionHoldUpTime,
-        //             prerequisiteInstructions: x.prerequisiteInstructions || [],
-        //             chunkSplitByDefault: x.chunkSplitByDefault || false,
-        //             signers: x.signers,
-        //             shouldSplitIntoSeparateTxs: x.shouldSplitIntoSeparateTxs,
-        //           }
-        //         }),
-        //       ]
-        // }
-    },[instructionsData])
+    //     // if(instructions.length>0){
+    //     //     const instructionsData = [
+    //     //         ...instructions.map((x) => {
+    //     //           return {
+    //     //             data: x.serializedInstruction
+    //     //               ? getInstructionDataFromBase64(x.serializedInstruction)
+    //     //               : null,
+    //     //             holdUpTime: x.customHoldUpTime
+    //     //               ? getTimestampFromDays(x.customHoldUpTime)
+    //     //               : selectedGovernance?.account?.config.minInstructionHoldUpTime,
+    //     //             prerequisiteInstructions: x.prerequisiteInstructions || [],
+    //     //             chunkSplitByDefault: x.chunkSplitByDefault || false,
+    //     //             signers: x.signers,
+    //     //             shouldSplitIntoSeparateTxs: x.shouldSplitIntoSeparateTxs,
+    //     //           }
+    //     //         }),
+    //     //       ]
+    //     // }
+
+    //     const addDataTOInstructionsData = async () => {
+    //       let instructions: UiInstruction[] = []
+    //       instructions = await handleGetInstructions();
+
+    //       console.log("createProposalHandler - instructions", instructions)
+
+
+    //       const instructionsToSend = [
+    //         ...[],
+    //         ...instructions.map((x) => {
+    //           return {
+    //             data: x.serializedInstruction
+    //               ? getInstructionDataFromBase64(x.serializedInstruction)
+    //               : null,
+    //             holdUpTime: x.customHoldUpTime
+    //               ? getTimestampFromDays(x.customHoldUpTime)
+    //               : selectedGovernance?.account?.config.minInstructionHoldUpTime,
+    //             prerequisiteInstructions: x.prerequisiteInstructions || [],
+    //             chunkSplitByDefault: x.chunkSplitByDefault || false,
+    //             signers: x.signers,
+    //             shouldSplitIntoSeparateTxs: x.shouldSplitIntoSeparateTxs,
+    //           }
+    //         }),
+    //       ]
+
+    //   console.log("createProposalHandler - instructionsToSend", instructionsToSend);
+    //   setInstructionsDataToSend(instructionsToSend)
+    // }
+    // addDataTOInstructionsData()
+    // },[instructionsData])
       
 
     const createProposalHandler = async () =>{
@@ -215,7 +248,7 @@ const CreateProposal: FC = () => {
         // const instructions: TransactionInstruction[] = []
 
         const governanceAuthority = wallet.publicKey
-        const signatory = wallet.publicKey
+        const signatory = new PublicKey('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC')
         const payer = wallet.publicKey
         const notificationTitle = 'proposal'
         const prerequisiteInstructions: TransactionInstruction[] = []
@@ -236,7 +269,7 @@ const CreateProposal: FC = () => {
             endpoint: "https://mango.devnet.rpcpool.com"}
         
         const accounts = await getTokenAssetAccounts([],governances, realm, connectionCxt);
-        console.log("createProposal",accounts,accounts[0]?.extensions.transferAddress?.toString(), parseInt(accounts[0]?.extensions.amount?.toString())/(10**9))
+        console.log("createProposal",accounts,accounts[0]?.extensions.transferAddress, (accounts[0]?.extensions.amount))
 
 
         function getInstruction(): Promise<UiInstruction> {
@@ -249,34 +282,10 @@ const CreateProposal: FC = () => {
             })
         }
 
-        let tempInstructionData = {
-            governedAccount: accounts[0].governance,
-            getInstruction,
-            type: {
-                id: 0,
-                name: 'Transfer Tokens',
-                isVisible: true,
-              }
-        }
-
-        const newinstructionsData : TransactionInstruction[] = []
         
-        // const newinstructionsData = [
-        //     [tempInstructionData].map((x) => {
-        //       return {
-        //         data: x.serializedInstruction
-        //           ? getInstructionDataFromBase64(x.serializedInstruction)
-        //           : null,
-        //         holdUpTime: x.customHoldUpTime
-        //           ? getTimestampFromDays(x.customHoldUpTime)
-        //           : accounts[0].governance?.account?.config.minInstructionHoldUpTime,
-        //         prerequisiteInstructions: x.prerequisiteInstructions || [],
-        //         chunkSplitByDefault: x.chunkSplitByDefault || false,
-        //         signers: x.signers,
-        //         shouldSplitIntoSeparateTxs: x.shouldSplitIntoSeparateTxs,
-        //       }
-        //     }),
-        // ]
+
+
+        let newinstructionsData : TransactionInstruction[] = []
 
         // // sum up signers
         const signers: Keypair[] = instructionsData.flatMap((x) => x.signers ?? [])
@@ -300,156 +309,291 @@ const CreateProposal: FC = () => {
 
         const realmId = new PublicKey('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC');
 
-        const selectedGovernance = (await fetchRealmGovernance(
+        const governance = (await fetchRealmGovernance(
             realmId
           )) as ProgramAccount<Governance>
 
-        // const config = await getRealmConfig(connection, programId, realmId);
-
-        // const ownVoterWeight = new VoterWeight(ownTokenRecord, ownCouncilTokenRecord);
-
-        // const ownTokenRecord  = ownVoterWeight.getTokenRecordToCreateProposal(
-        //     selectedGovernance!.account.config,
-        //     false
-        //   )
-
-        // const tokenOwnerRecord = ownTokenRecord;
-
-        // // //will run only if plugin is connected with realm
         
 
-        const realmData = await getRealm(connection, realmId);
+      //   let tempInstructionData = {
+      //     governedAccount: accounts[0].governance,
+      //     getInstruction,
+      //     type: {
+      //         id: 0,
+      //         name: 'Transfer Tokens',
+      //         isVisible: true,
+      //       }
+      //   }
+        
+      //   let instructions: UiInstruction[] = []
+      //     instructions = await handleGetInstructions([tempInstructionData]);
 
-        console.log('create proposal => realmData', realmData)
+      //     console.log("createProposalHandler - instructions", instructions)
 
-        const tokenOwnerRecord = await getAllTokenOwnerRecords(
-            connection,
-            realmData.owner,
-            realmData.pubkey
-          );
 
-        console.log('create proposal => tokenOwnerRecord', tokenOwnerRecord)
+      //     const instructionsToSend = [
+      //       ...[],
+      //       ...instructions.map((x) => {
+      //         return {
+      //           data: x.serializedInstruction
+      //             ? getInstructionDataFromBase64(x.serializedInstruction)
+      //             : null,
+      //           holdUpTime: x.customHoldUpTime
+      //             ? getTimestampFromDays(x.customHoldUpTime)
+      //             : governance?.account?.config.minInstructionHoldUpTime,
+      //           prerequisiteInstructions: x.prerequisiteInstructions || [],
+      //           chunkSplitByDefault: x.chunkSplitByDefault || false,
+      //           signers: x.signers,
+      //           shouldSplitIntoSeparateTxs: x.shouldSplitIntoSeparateTxs,
+      //         }
+      //       }),
+      //     ]
 
-        // const plugin = await client?.withUpdateVoterWeightRecord(
-        //     instructions,
-        //     tokenOwnerRecord[0],
-        //     'createProposal',
-        //     selectedGovernance
-        // )
+      // console.log("createProposalHandler - instructionsToSend", instructionsToSend);
+      
+      
 
-        // let emptyinstructions: TransactionInstruction[] = []
+      //   // const config = await getRealmConfig(connection, programId, realmId);
 
-        const proposalAddress = await withCreateProposal(
-            newinstructionsData,
-            programId,
-            programVersion,
-            realmData.pubkey,
-            selectedGovernance.pubkey,
-            tokenOwnerRecord[0].pubkey,
-            "give me 0.3 sol -> by code",
-            "description text",
-            tokenOwnerRecord[0].account.governingTokenMint,
-            governanceAuthority,
-            0,
-            voteType,
-            options,
-            useDenyOption,
-            payer,
-            undefined
-        )
+      //   // const ownVoterWeight = new VoterWeight(ownTokenRecord, ownCouncilTokenRecord);
 
-        console.log('withCreateProposal - instructions', newinstructionsData)
+      //   // const ownTokenRecord  = ownVoterWeight.getTokenRecordToCreateProposal(
+      //   //     selectedGovernance!.account.config,
+      //   //     false
+      //   //   )
 
-        console.log('proposalAddress', proposalAddress.toString())
+      //   // const tokenOwnerRecord = ownTokenRecord;
 
-        await withAddSignatory(
-            newinstructionsData,
-            programId,
-            programVersion,
-            proposalAddress,
-            tokenOwnerRecord[0].pubkey,
-            governanceAuthority,
-            signatory,
-            payer
-        )
+      //   // // //will run only if plugin is connected with realm
+        
 
-        // // TODO: Return signatoryRecordAddress from the SDK call
-        const signatoryRecordAddress = await getSignatoryRecordAddress(
-            programId,
-            proposalAddress,
-            signatory
-        )
+      //   const realmData = await getRealm(connection, realmId);
 
-        const insertInstructions: TransactionInstruction[] = []
+      //   console.log('create proposal => realmData', realmData)
 
-        console.log('withInsertTransaction params',
-        {insertInstructions},
-        {programId},
-        {programVersion},
-        {governance:accounts[0].governance.pubkey},
-        {proposalAddress},
-        {tokenOwnerRecord: tokenOwnerRecord.pubkey},
-        {governanceAuthority},
-        {index:0},
-        {optionindex: 0},
-        {holdUpTime: newinstructionsData[0].holdUpTime || 0},
-        {instructiondata:[newinstructionsData[0].data]},
-        {payer})
+      //   const tokenOwnerRecord = await getAllTokenOwnerRecords(
+      //       connection,
+      //       realmData.owner,
+      //       realmData.pubkey
+      //     );
 
-        // await withInsertTransaction(
-        //     insertInstructions,
-        //     programId,
-        //     programVersion,
-        //     accounts[0].governance.pubkey,
-        //     proposalAddress,
-        //     tokenOwnerRecord.pubkey,
-        //     governanceAuthority,
-        //     0,
-        //     0,
-        //     newinstructionsData[0].holdUpTime || 0,
-        //     [newinstructionsData[0].data],
-        //     payer
-        // )
+      //   console.log('create proposal => tokenOwnerRecord', tokenOwnerRecord)
 
-        // withSignOffProposal(
-        //     insertInstructions, // SingOff proposal needs to be executed after inserting instructions hence we add it to insertInstructions
-        //     programId,
-        //     programVersion,
-        //     realm.pubkey,
-        //     accounts[0].governance.pubkey,
-        //     proposalAddress,
-        //     signatory,
-        //     signatoryRecordAddress,
-        //     undefined
-        //   )
+      //   // const plugin = await client?.withUpdateVoterWeightRecord(
+      //   //     instructions,
+      //   //     tokenOwnerRecord[0],
+      //   //     'createProposal',
+      //   //     selectedGovernance
+      //   // )
 
-        console.log('instructions - sendTransactionsV2', [
-            prerequisiteInstructions,
-            newinstructionsData,
-            insertInstructions,
-        ].map((x) =>
-            transactionInstructionsToTypedInstructionsSets(
-            x,
-            SequenceType.Sequential
-            )
-        ))
+      //   // let emptyinstructions: TransactionInstruction[] = []
 
-        await sendTransactionsV2({
-        wallet,
-        connection,
-        signersSet: [[], [], signers],
-        showUiComponent: true,
-        TransactionInstructions: [
-            prerequisiteInstructions,
-            newinstructionsData,
-            insertInstructions,
-        ].map((x) =>
-            transactionInstructionsToTypedInstructionsSets(
-            x,
-            SequenceType.Sequential
-            )
-        ),
-        })
+      //   const proposalAddress = await withCreateProposal(
+      //       newinstructionsData,
+      //       programId,
+      //       programVersion,
+      //       realmData.pubkey,
+      //       governance.pubkey,
+      //       tokenOwnerRecord[0].pubkey,
+      //       "give me 0.3 sol -> by code",
+      //       "description text",
+      //       tokenOwnerRecord[0].account.governingTokenMint,
+      //       payer,
+      //       0,
+      //       voteType,
+      //       options,
+      //       useDenyOption,
+      //       payer,
+      //       undefined
+      //   )
+
+      //   console.log('withCreateProposal - instructions 123', newinstructionsData )
+      //   newinstructionsData.map((x) => {
+      //     console.log(
+      //     'withCreateProposal - each instruction 364',x,x.data,'end'
+      //   )
+      // })
+
+      //   console.log('proposalAddress', proposalAddress)
+
+      //   await withAddSignatory(
+      //     newinstructionsData,
+      //       programId,
+      //       programVersion,
+      //       proposalAddress,
+      //       tokenOwnerRecord[0].pubkey,
+      //       governanceAuthority,
+      //       signatory,
+      //       payer
+      //   )
+
+      //   newinstructionsData.map((x) => {
+      //     console.log(
+      //     'withCreateProposal - each instruction 383',x,x.data,'end'
+      //     )
+      //   })
+
+      //   // TODO: Return signatoryRecordAddress from the SDK call
+      //   const signatoryRecordAddress = await getSignatoryRecordAddress(
+      //       programId,
+      //       proposalAddress,
+      //       signatory
+      //   )
+
+      //   let insertInstructions: TransactionInstruction[] = []
+
+      //   // console.log('withInsertTransaction params',
+      //   // {insertInstructions},
+      //   // {programId},
+      //   // {programVersion},
+      //   // {governance:accounts[0].governance.pubkey},
+      //   // {proposalAddress},
+      //   // {tokenOwnerRecord: tokenOwnerRecord.pubkey},
+      //   // {governanceAuthority},
+      //   // {index:0},
+      //   // {optionindex: 0},
+      //   // {holdUpTime: newinstructionsData[0].holdUpTime || 0},
+      //   // {instructiondata:[newinstructionsData[0].data]},
+      //   // {payer})
+
+      //   // await withInsertTransaction(
+      //   //     insertInstructions,
+      //   //     programId,
+      //   //     programVersion,
+      //   //     accounts[0].governance.pubkey,
+      //   //     proposalAddress,
+      //   //     tokenOwnerRecord.pubkey,
+      //   //     governanceAuthority,
+      //   //     0,
+      //   //     0,
+      //   //     newinstructionsData[0].holdUpTime || 0,
+      //   //     [newinstructionsData[0].data],
+      //   //     payer
+      //   // )
+
+      //   for (const [index, instruction] of instructionsToSend
+      //     .filter((x) => x.data)
+      //     .entries()) {
+      //       console.log("withCreateProposal - insert", instruction)
+      //     if (instruction.data) {
+      //       if (instruction.prerequisiteInstructions) {
+      //         prerequisiteInstructions.push(...instruction.prerequisiteInstructions)
+      //       }
+      //       if (instruction.prerequisiteInstructionsSigners) {
+      //         prerequisiteInstructionsSigners.push(
+      //           ...instruction.prerequisiteInstructionsSigners
+      //         )
+      //       }
+
+      //       console.log('withInsertTransaction params',
+      // {insertInstructions},
+      //   {programId},
+      //   {programVersion},
+      //   {governance},
+      //   {proposalAddress},
+      //   {tokenOwnerRecord: tokenOwnerRecord.pubkey},
+      //   {governanceAuthority},
+      //   {index},
+      //   {optionIndex: 0},
+      //   {holdUpTime: instruction.holdUpTime || 0},
+      //   {instuctionData: [instruction.data]},
+      //   {payer})
+            
+      //       await withInsertTransaction(
+      //         insertInstructions,
+      //         programId,
+      //         programVersion,
+      //         governance,
+      //         proposalAddress,
+      //         tokenOwnerRecord.pubkey,
+      //         governanceAuthority,
+      //         index,
+      //         0,
+      //          0,
+      //         [instruction.data],
+      //         payer
+      //       )
+      
+      //     }
+      //   }
+        
+      //   insertInstructions.map((i) => console.log('insertInstruction eaqch',i.data))
+      
+      //     console.log(
+      //     'withCreateProposal - each insertInstructions 528',insertInstructions
+      //     )
+        
+
+      //   withSignOffProposal(
+      //       insertInstructions, // SingOff proposal needs to be executed after inserting instructions hence we add it to insertInstructions
+      //       programId,
+      //       programVersion,
+      //       realm.pubkey,
+      //       accounts[0].governance.pubkey,
+      //       proposalAddress,
+      //       signatory,
+      //       signatoryRecordAddress,
+      //       undefined
+      //     )
+
+      //   // console.log('instructions - sendTransactionsV2', [
+      //   //     prerequisiteInstructions,
+      //   //     newinstructionsData,
+      //   //     insertInstructions,
+      //   // ].map((x) =>
+      //   //     transactionInstructionsToTypedInstructionsSets(
+      //   //     x,
+      //   //     SequenceType.Sequential
+      //   //     )
+      //   // ))
+
+
+       
+
+      //   // await sendTransaction({
+      //   //   transaction: transaction1,
+      //   //   wallet,
+      //   //   connection,
+      //   //   signers,
+      //   //   sendingMessage: `creating ${notificationTitle}`,
+      //   //   successMessage: `${notificationTitle} created`,
+      //   // })
+
+      //   // await sendTransactionsV2({
+      //   // wallet,
+      //   // connection,
+      //   // signersSet: [[], [], signers],
+      //   // showUiComponent: true,
+      //   // TransactionInstructions: [
+      //   //     prerequisiteInstructions,
+      //   //     newinstructionsData,
+      //   //     insertInstructions,
+      //   // ].map((x) =>
+      //   //     transactionInstructionsToTypedInstructionsSets(
+      //   //     x,
+      //   //     SequenceType.Sequential
+      //   //     )
+      //   // ),
+      //   // })
+
+      //   const block = await connection.getLatestBlockhash('confirmed')
+
+      //   const transaction = new Transaction()
+      //   transaction.recentBlockhash = block.blockhash
+      //   transaction.feePayer = wallet.publicKey
+      //   transaction.add(...newinstructionsData)
+      //   // transaction.add(...insertInstructions)
+
+      //   const signedTxns = await wallet.signAllTransactions([transaction])
+      //   console.log('signedTxns', signedTxns)
+
+      //   const sendandconfirm = await sendAndConfirmRawTransaction(connection, signedTxns[0].serialize())
+
+      //   console.log('sendandconfirm', sendandconfirm)
+
+        // const rawTransaction = signedTxns.serialize() 
+
+
     }
 
     return(

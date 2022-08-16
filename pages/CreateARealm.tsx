@@ -7,6 +7,8 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import CreateProposal from "./CreateProposal";
 import SendFundToTreasury from "./SendFundToTreasury";
+import NewCreateProposal from "./NewCreateProposal";
+import NewMultiTraxnProposal from "./NewMultiTraxnProposal";
 
 
 type PhantomEvent = "disconnect" | "connect" | "accountChanged";
@@ -22,12 +24,12 @@ interface PhantomProvider {
     isPhantom: boolean;
 }
 
-const CreateARealm: FC = () => {
+const CreateARealm = ({wallet, connection}) => {
 
-    const wallet = useWallet();
+    // const wallet = useWallet();
 
     const [realmName, setRealmName] = useState('');
-    const [realmPk, setRealmPk] = useState('8G7jxmrrPoxe6KBzFQ29QTXXnUX8zpQhwpkbgHDoWxjo');
+    const [realmPk, setRealmPk] = useState('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC');
 
 
     enum SequenceType {
@@ -140,18 +142,24 @@ const CreateARealm: FC = () => {
 
     return (
         <div>
-            <div>
+            {/* <div>
             <WalletMultiButton />
-           </div>
+           </div> */}
             <button style={{margin: '20px'}} onClick={createRealmHandler}>Create a demo realm</button>
             {realmName && <div> <b>{realmName}</b> ==&gt; realm created</div>}
             {realmPk && <div><b>{realmPk}</b> ==&gt; realm publickey </div>}
 
             <div>
-              <SendFundToTreasury realmPk={realmPk?new PublicKey(realmPk):null}/>
+              <SendFundToTreasury wallet={wallet} connection={connection} realmPk={realmPk?new PublicKey(realmPk):null}/>
+            </div>
+            {/* <div>
+              <CreateProposal wallet={wallet}/>
+            </div> */}
+            <div>
+              <NewCreateProposal wallet={wallet}/>
             </div>
             <div>
-              <CreateProposal />
+              <NewMultiTraxnProposal wallet={wallet}/>
             </div>
         </div>
     );

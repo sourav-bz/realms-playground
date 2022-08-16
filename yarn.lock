@@ -1711,7 +1711,7 @@
   dependencies:
     "@solana/wallet-adapter-base" "^0.9.10"
 
-"@solana/wallet-adapter-base@^0.9.10":
+"@solana/wallet-adapter-base@^0.9.10", "@solana/wallet-adapter-base@^0.9.5":
   "integrity" "sha512-NmNybJSoQ4jYb62lKbTIqMhAivpwwzBBrgHNQjGQlhunIusbYf3an7pyPPfeqgBKdPi4IaNA782O0g6q2tjGRQ=="
   "resolved" "https://registry.npmjs.org/@solana/wallet-adapter-base/-/wallet-adapter-base-0.9.10.tgz"
   "version" "0.9.10"

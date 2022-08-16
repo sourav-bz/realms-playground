@@ -1,5 +1,6 @@
 // import * as Sentry from '@sentry/react'
 import { SignerWalletAdapter } from '@solana/wallet-adapter-base'
+import { WalletContextState } from '@solana/wallet-adapter-react'
 import {
   Commitment,
   Connection,
@@ -212,6 +213,7 @@ export async function simulateTransaction(
   const signData = transaction.serializeMessage()
   // @ts-ignore
   const wireTransaction = transaction._serialize(signData)
+  console.log("wireTransaction",wireTransaction)
   const encodedTransaction = wireTransaction.toString('base64')
   const config: any = { encoding: 'base64', commitment }
   const args = [encodedTransaction, config]
@@ -499,9 +501,10 @@ export const sendTransactionsV2 = async ({
         sequenceType: transactionInstruction.sequenceType,
       })
     }
+    console.log("sendTransactionV2", transaction)
     unsignedTxns.push(transaction)
   }
-  console.log(transactionCallOrchestrator)
+  console.log('transactionCallOrchestrator',transactionCallOrchestrator,unsignedTxns)
   const signedTxns = await wallet.signAllTransactions(unsignedTxns)
   if (showUiComponent) {
     showTransactionsProcessUi(signedTxns.length)
