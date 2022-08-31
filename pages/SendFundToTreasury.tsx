@@ -11,7 +11,8 @@ import {
     ProgramAccount,
     getRealm,
     WalletSigner,
-    getGovernance
+    getGovernance,
+    Proposal
   } from '@solana/spl-governance'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, Connection } from "@solana/web3.js";
@@ -26,34 +27,18 @@ const SendFundToTreasury = ({realmPk, wallet, connection}:{realmPk: PublicKey | 
     useEffect(()=>{
         if(realmPk && connection){
             const getTreasuryAddress = async () =>{
-                const governances = await getGovernanceAccounts(connection, new PublicKey(programId), Governance, [
-                    pubkeyFilter(1, realmPk)!,
-                ])
+                const realmData = await getRealm(connection, new PublicKey(realmPk))
+                const COUNCIL_MINT = realmData.account.config.councilMint
+                const governanceInfo = await getGovernanceAccounts(connection, new PublicKey(programId), Governance, [pubkeyFilter(33, COUNCIL_MINT)!])
+                const governance = governanceInfo[0]
+                const nativeTreasury = await getNativeTreasuryAddress(new PublicKey(programId), governance.pubkey)
 
-                setTreasuryAddress('');
-                console.log('governances', governances);
-                
-               // const realm = await getRealm(connection, new PublicKey('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC'));
+                const proposals =await getGovernanceAccounts(connection, new PublicKey(programId), Proposal, [
+                    pubkeyFilter(1, governance.pubkey)!,
+                  ])
 
-                // const connectionCxt = { cluster: 'devnet',
-                //     current: connection,
-                //     endpoint: "https://mango.devnet.rpcpool.com"}
-               
-                // const accounts = await getTokenAssetAccounts([],governances, realm,connectionCxt);
-                // console.log("sendFundToTreasury",accounts,accounts[0]?.extensions.transferAddress?.toString(), parseInt(accounts[0]?.extensions.amount?.toString())/(10**9))
-
-                // // governances.map(async (governance, i)=>{
-                // //     let treasuryaddr = await getNativeTreasuryAddress(new PublicKey(programId), governance.pubkey)
-                // //     console.log('treasuryaddr', treasuryaddr.toString())
-                // //     treasuryadd.push(treasuryaddr.toString())
-                // // })
-
-                // setTreasuryAddress(accounts[0]?.extensions?.transferAddress?.toString()||'');
-                // setTreasuryBalance(parseInt(accounts[0]?.extensions.amount?.toString()||'0')/(10**9))
-                
-                const governance =await getGovernance(connection,  new PublicKey('9PDa3cRWPiA6uCDN5rC92XygoV8WeKuvsM2YuoETCQkb'))
-                setTreasuryAddress(governance.pubkey.toString());
-                    // setTreasuryAddress(treasuryaddr.toString())
+                  console.log('proposals -', proposals)
+                setTreasuryAddress(nativeTreasury)
             }
             getTreasuryAddress()
         }

@@ -29,7 +29,7 @@ const CreateARealm = ({wallet, connection}) => {
     // const wallet = useWallet();
 
     const [realmName, setRealmName] = useState('');
-    const [realmPk, setRealmPk] = useState('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC');
+    const [realmPk, setRealmPk] = useState('EwgHrDPSQspcdrLFDvQ2MJwcjsZr9MhfMZsAd6FnEezL');
 
 
     enum SequenceType {
@@ -156,7 +156,7 @@ const CreateARealm = ({wallet, connection}) => {
               <CreateProposal wallet={wallet}/>
             </div> */}
             <div>
-              <NewCreateProposal wallet={wallet}/>
+              <NewCreateProposal wallet={wallet} realmPk={realmPk?new PublicKey(realmPk):null}/>
             </div>
             <div>
               <NewMultiTraxnProposal wallet={wallet}/>

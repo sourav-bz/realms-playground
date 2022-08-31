@@ -138,7 +138,7 @@ export async function getSolTransferInstruction({
   }
 
   
-const NewCreateProposal = ({ wallet, connection}:{ wallet: WalletSigner, connection: Connection}) => {
+const NewCreateProposal = ({realmPk, wallet, connection}:{ wallet: WalletSigner, connection: Connection}) => {
 
     console.log("CreateProposal - wallet", wallet)
 
@@ -183,60 +183,21 @@ const NewCreateProposal = ({ wallet, connection}:{ wallet: WalletSigner, connect
 
         const connection =  new Connection("https://mango.devnet.rpcpool.com", 'recent');
         const programId = new PublicKey('GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw');
-        const realmPk = new PublicKey('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC')
 
-        const governances = await getGovernanceAccounts(connection, new PublicKey(programId), Governance, [
-            pubkeyFilter(1, realmPk)!,
-        ])
 
         const realm = await getRealm(connection, realmPk);
 
-        const connectionCxt = { cluster: 'devnet',
-            current: connection,
-            endpoint: "https://mango.devnet.rpcpool.com"}
-        
-        const accounts = await getTokenAssetAccounts([],governances, realm, connectionCxt);
-        console.log("createProposal",accounts,accounts[0]?.extensions.transferAddress, (accounts[0]?.extensions.amount))
+        const realmData = await getRealm(connection, realmPk);
 
 
-        function getInstruction(): Promise<UiInstruction> {
-            return  getSolTransferInstruction({
-                governedTokenAccount:accounts[0],
-                destinationAccount:new PublicKey('3BHtZAxD7WTWZUQATwQ8J5YPqtaqSFkEzhXW2zntEgyA'),
-                amount:'0.3',
-                programId:programId,
-                currentAccount:accounts[0],
-            })
-        }
+        const governances = await getGovernanceAccounts(connection, new PublicKey(programId), Governance, [
+          pubkeyFilter(1, realmPk)!,
+      ])
 
-        
+      const governance = governances.filter((gov)=>gov.pubkey.toString()===realm.account.authority?.toString())[0]
 
-
-        let newinstructionsData : TransactionInstruction[] = []
-
-        // // sum up signers
-        const signers: Keypair[] = instructionsData.flatMap((x) => x.signers ?? [])
-        const shouldSplitIntoSeparateTxs=  false
-
-        // // Explicitly request the version before making RPC calls to work around race conditions in resolving
-        // // the version for RealmInfo
-
-        // Changed this because it is misbehaving on my local validator setup.
-        const programVersion = 2;
-
-        // V2 Approve/Deny configuration
-        const voteType = VoteType.SINGLE_CHOICE
-        const options = ['Approve']
-        const useDenyOption = true
-
-        // const fetchRealmGovernance=async(realmPk: PublicKey)=> {
-        //     const governance = await getGovernance(connection, realmPk)
-        //     return governance
-        // }
-
-        const realmId = new PublicKey('HWuCwhwayTaNcRtt72edn2uEMuKCuWMwmDFcJLbah3KC');
-        const governance =await getGovernance(connection,  new PublicKey('9PDa3cRWPiA6uCDN5rC92XygoV8WeKuvsM2YuoETCQkb'))
-        const realmData = await getRealm(connection, realmId);
+      // const councilGovernance = governances.filter((gov)=>gov.account.governedAccount.toString()===realm.account.config.councilMint?.toString())[0]
+      // const communityGovernance = governances.filter((gov)=>gov.account.governedAccount.toString()===realm.account.communityMint.toString())[0]
 
         const tokenOwnerRecord = await getAllTokenOwnerRecords(
         connection,
@@ -270,6 +231,8 @@ const NewCreateProposal = ({ wallet, connection}:{ wallet: WalletSigner, connect
         const nativeTreasury = await getNativeTreasuryAddress(programId, governance.pubkey)
 
         console.log('create New proposal - nativeTreasury', nativeTreasury.toString())
+
+        console.log('create New proposal - nativeTreasury balance', await connection.getAccountInfo(nativeTreasury))
 
         let ins = SystemProgram.transfer({
         fromPubkey: nativeTreasury,

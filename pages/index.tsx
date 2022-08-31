@@ -44,7 +44,6 @@ export default function Home() {
   },[])
 
   const handleConnectPhantom = async () =>{
-
     console.log('wallet connect called');
     await wallet.connect();
   }
