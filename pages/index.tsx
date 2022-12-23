@@ -9,6 +9,7 @@ import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import UpdatedCreateProposal from './UpdatedCreateProposal';
 require('@solana/wallet-adapter-react-ui/styles.css');
 
 export default function Home() {
@@ -72,6 +73,7 @@ export default function Home() {
 
               <button onClick={()=>{handleConnectPhantom()}}>connect phantom</button>
               <CreateARealm wallet={wallet} connection={connection}/>
+              <UpdatedCreateProposal wallet={wallet} connection={connection}/>
             </div>
     //     </WalletProvider>
     // </ConnectionProvider>
